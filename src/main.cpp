@@ -168,7 +168,7 @@ portTASK_FUNCTION(showTimeTask, pvParameters)
         // If the time is less than 1200, it's AM.
         boolean isAm = true;
 
-        if (currentTime > 1200)
+        if (currentTime >= 1200)
         {
             isAm = false;
         }
@@ -190,6 +190,9 @@ portTASK_FUNCTION(showTimeTask, pvParameters)
                 currentTime -= 1200;
             }
         }
+
+        // Print the time
+        display.print(currentTime);
 
         uint8_t amPmMarker = 0x00;
         // Which light for AM/PM?
@@ -226,7 +229,6 @@ portTASK_FUNCTION(showTimeTask, pvParameters)
             display.writeDigitRaw(2, amPmMarker);
         }
 
-        display.print(currentTime);
         display.setBrightness(gScreenBrightness);
         display.writeDisplay();
 
