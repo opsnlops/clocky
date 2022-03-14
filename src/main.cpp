@@ -163,8 +163,44 @@ portTASK_FUNCTION(showTimeTask, pvParameters)
     for (;;)
     {
         Time time = Time();
-        int currentTime = atoi(time.getCurrentTime("%I%M").c_str());
-        display.print(currentTime);
+        int currentTime = atoi(time.getCurrentTime("%H%M").c_str());
+
+        // If the time is less than 1200, it's AM.
+        boolean isAm = true;
+
+        if (currentTime > 1200)
+        {
+            isAm = false;
+        }
+
+        // I like the time in 12 hour time, so let's convert
+        if (isAm)
+        {
+            if (currentTime < 100)
+            {
+                // Normalize 00:xx -> 12:xx
+                currentTime += 1200;
+            }
+        }
+        else
+        {
+            // And normalize the PM time
+            if (currentTime > 1259)
+            {
+                currentTime -= 1200;
+            }
+        }
+
+        uint8_t amPmMarker = 0x00;
+        // Which light for AM/PM?
+        if (isAm)
+        {
+            amPmMarker = 0x04;
+        }
+        else
+        {
+            amPmMarker = 0x08;
+        }
 
         // Flip the colon on the right interval
         if (gBlinkColon)
@@ -174,13 +210,23 @@ portTASK_FUNCTION(showTimeTask, pvParameters)
                 showColon = !showColon;
                 cycle = 0;
             }
-            display.drawColon(showColon);
         }
         else
         {
-            display.drawColon(true);
+            showColon = true;
         }
 
+        // Bit 0x02 is the colon, and position 2 is the colons
+        if (showColon)
+        {
+            display.writeDigitRaw(2, amPmMarker | 0x02);
+        }
+        else
+        {
+            display.writeDigitRaw(2, amPmMarker);
+        }
+
+        display.print(currentTime);
         display.setBrightness(gScreenBrightness);
         display.writeDisplay();
 
