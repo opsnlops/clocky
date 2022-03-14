@@ -14,6 +14,7 @@ using namespace creatures;
 // Defined in main.cpp
 extern uint8_t gScreenBrightness;
 extern boolean gBlinkColon;
+extern boolean gDisplayOn;
 
 static Logger l;
 
@@ -49,17 +50,26 @@ void updateConfig(String incomingJson)
         String brightness = json["brightness"];
         l.debug("'brightness' was %s", brightness.c_str());
 
-        uint8_t decodedBrightness = atoi(brightness.c_str());
-
-        // Make sure that the brightness is in range
-        if (decodedBrightness >= BRIGHTNESS_MIN && decodedBrightness <= BRIGHTNESS_MAX)
+        // Don't look at an empty string
+        if (brightness != NULL && !brightness.isEmpty() && !brightness.equals("null"))
         {
-            l.debug("setting brightness to %d", decodedBrightness);
-            gScreenBrightness = decodedBrightness;
+
+            uint8_t decodedBrightness = atoi(brightness.c_str());
+
+            // Make sure that the brightness is in range
+            if (decodedBrightness >= BRIGHTNESS_MIN && decodedBrightness <= BRIGHTNESS_MAX)
+            {
+                l.debug("setting brightness to %d", decodedBrightness);
+                gScreenBrightness = decodedBrightness;
+            }
+            else
+            {
+                l.error("Got an out-of-range brightness request: %d", decodedBrightness);
+            }
         }
         else
         {
-            l.error("Got an out-of-range brightness request: %d", decodedBrightness);
+            l.warning("'brightness' was missing from the config");
         }
 
         /*
@@ -72,17 +82,57 @@ void updateConfig(String incomingJson)
         String blinkingColon = json["blinkingColon"];
         l.debug("'blinkingColon' was %s", blinkingColon);
 
-        const char* blinkValue = blinkingColon.c_str();
-
-        // Make sure that the brightness is in range
-        if (strncmp("on", blinkValue, strlen(blinkValue)) == 0)
+        // Don't do a dumb thing :)
+        if (blinkingColon != NULL && !blinkingColon.isEmpty() && !blinkingColon.equals("null"))
         {
-            gBlinkColon = true;
+            const char *blinkValue = blinkingColon.c_str();
+
+            // Make sure that the brightness is in range
+            if (strncmp("on", blinkValue, strlen(blinkValue)) == 0)
+            {
+                gBlinkColon = true;
+            }
+            else
+            {
+                gBlinkColon = false;
+            }
+            l.info("set 'gBlinkColon' to %d", gBlinkColon);
         }
         else
         {
-            gBlinkColon = false;
+            l.warning("'blinkingColon' was missing from the config");
         }
-        l.info("set 'gBlinkColon' to %d", gBlinkColon);
+
+        /*
+
+            Display On?
+
+            Parameter: displayOn
+
+        */
+
+        String displayOn = json["displayOn"];
+        l.debug("'displayOn' was %s", displayOn);
+
+        // Don't make an adjustment on an missing value
+        if (displayOn != NULL && !displayOn.isEmpty() && !displayOn.equals("null"))
+        {
+            const char *displayOnValue = displayOn.c_str();
+
+            // Make sure that the brightness is in range
+            if (strncmp("on", displayOnValue, strlen(displayOnValue)) == 0)
+            {
+                gDisplayOn = true;
+            }
+            else
+            {
+                gDisplayOn = false;
+            }
+            l.info("set 'gDisplayOn' to %d", gDisplayOn);
+        }
+        else
+        {
+            l.warning("'displayOn' was missing in the config object, not changing anything");
+        }
     }
 }

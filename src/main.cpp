@@ -43,6 +43,7 @@ Adafruit_7segment display = Adafruit_7segment();
 // Configuration
 uint8_t gScreenBrightness = 1; // 0 - 15, 15 is brightest
 boolean gBlinkColon = true;    // Should the colon blink?
+boolean gDisplayOn = true;     // Should the display be on? (So I can turn it off while we're watching movies!)
 
 void setup()
 {
@@ -162,71 +163,80 @@ portTASK_FUNCTION(showTimeTask, pvParameters)
     int cycle = 0;
     for (;;)
     {
-        Time time = Time();
-        int currentTime = atoi(time.getCurrentTime("%H%M").c_str());
-
-        // If the time is less than 1200, it's AM.
-        boolean isAm = true;
-
-        if (currentTime >= 1200)
+        if (gDisplayOn)
         {
-            isAm = false;
-        }
+            Time time = Time();
+            int currentTime = atoi(time.getCurrentTime("%H%M").c_str());
 
-        // I like the time in 12 hour time, so let's convert
-        if (isAm)
-        {
-            if (currentTime < 100)
+            // If the time is less than 1200, it's AM.
+            boolean isAm = true;
+
+            if (currentTime >= 1200)
             {
-                // Normalize 00:xx -> 12:xx
-                currentTime += 1200;
+                isAm = false;
             }
-        }
-        else
-        {
-            // And normalize the PM time
-            if (currentTime > 1259)
+
+            // I like the time in 12 hour time, so let's convert
+            if (isAm)
             {
-                currentTime -= 1200;
+                if (currentTime < 100)
+                {
+                    // Normalize 00:xx -> 12:xx
+                    currentTime += 1200;
+                }
             }
-        }
-
-        // Print the time
-        display.print(currentTime);
-
-        uint8_t amPmMarker = 0x00;
-        // Which light for AM/PM?
-        if (isAm)
-        {
-            amPmMarker = 0x04;
-        }
-        else
-        {
-            amPmMarker = 0x08;
-        }
-
-        // Flip the colon on the right interval
-        if (gBlinkColon)
-        {
-            if (cycle++ > colonBlinkRate)
+            else
             {
-                showColon = !showColon;
-                cycle = 0;
+                // And normalize the PM time
+                if (currentTime > 1259)
+                {
+                    currentTime -= 1200;
+                }
             }
-        }
-        else
-        {
-            showColon = true;
-        }
 
-        // Bit 0x02 is the colon, and position 2 is the colons
-        if (showColon)
-        {
-            display.writeDigitRaw(2, amPmMarker | 0x02);
-        }
+            // Print the time
+            display.print(currentTime);
+
+            uint8_t amPmMarker = 0x00;
+            // Which light for AM/PM?
+            if (isAm)
+            {
+                amPmMarker = 0x04;
+            }
+            else
+            {
+                amPmMarker = 0x08;
+            }
+
+            // Flip the colon on the right interval
+            if (gBlinkColon)
+            {
+                if (cycle++ > colonBlinkRate)
+                {
+                    showColon = !showColon;
+                    cycle = 0;
+                }
+            }
+            else
+            {
+                showColon = true;
+            }
+
+            // Bit 0x02 is the colon, and position 2 is the colons
+            if (showColon)
+            {
+                display.writeDigitRaw(2, amPmMarker | 0x02);
+            }
+            else
+            {
+                display.writeDigitRaw(2, amPmMarker);
+            }
+
+        } // gDisplayOn
         else
         {
-            display.writeDigitRaw(2, amPmMarker);
+            // Show nothing if the display is off
+            display.print("");
         }
 
         display.setBrightness(gScreenBrightness);
