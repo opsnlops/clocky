@@ -17,6 +17,11 @@ static Logger l;
 
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(12, LED_RING_PIN, NEO_GRB + NEO_KHZ800);
 
+
+// Config vars
+uint8_t gPixelRingSaturation;
+uint8_t gPixelBrightness;
+
 TaskHandle_t secondRingTaskHandle;
 
 // Seed this with a random number
@@ -42,26 +47,35 @@ uint16_t getRandomHue()
  */
 portTASK_FUNCTION(secondRingTask, pvParameters)
 {
+
+    // Default to this for now, make this a config var later
+    gPixelRingSaturation = 242;
+    gPixelBrightness = 15;
     strip.begin();
     strip.clear();
     strip.show();
     l.debug("started up the LED ring on GPIO %d", LED_RING_PIN);
 
-    // How many ticks per step? 60000 ms in a minute / 12 pixels / brightness levels per pixel
-    const int brightnessPerPixel = 24;
-    const TickType_t xFrequency = pdMS_TO_TICKS(60000 / 12 / brightnessPerPixel);
+    // How many ticks per step? 60000 ms in a minute / 12 pixels / how many steps per pixel
+    const int stepsPerPixel = 75; // Five seconds per pixel  (75 = 15Hz)
+    const TickType_t xFrequency = pdMS_TO_TICKS(60000 / 12 / stepsPerPixel);
     l.debug("frequency is %d", xFrequency);
 
-    uint16_t hue = getRandomHue();
+    uint16_t oldHue = getRandomHue();
+
+    // Fill the strip with the oldHue
+    l.debug("filling the ring with the 'old' hue");
+    for(uint8_t i = 0; i < 12; i++)
+    {
+        strip.setPixelColor(i, strip.ColorHSV(oldHue, gPixelRingSaturation, gPixelBrightness));
+    }
+    strip.show();
+
+    uint16_t newHue = oldHue;
     uint32_t ulNotifiedValue;
     TickType_t xLastWakeTime; // Keep track of the last time we woke up so we can be ultra precise
     for (;;)
     {
-
-        /*
-          TODO: Rather than use brightness, have it fade between colors. That's less jarring than
-                turning off, and makes handling brightness from the configuration super easy.
-        */
 
         // Wait for a our cue to start
         l.debug("waiting for a signal to start");
@@ -69,41 +83,57 @@ portTASK_FUNCTION(secondRingTask, pvParameters)
         xLastWakeTime = xTaskGetTickCount();
         l.debug("got the signal, starting!");
 
-        uint8_t currentBrightness = 0;
+        // Save the old color and get the new one
+        oldHue = newHue;
+        newHue = getRandomHue();
+        l.debug("oldHue: %d, newHue: %d", oldHue, newHue);
+
+        uint8_t currentStep = 0;
         for (uint8_t pixel = 0; pixel < 12; pixel++)
         {
             l.debug("now doing pixel %d", pixel);
-            for (uint8_t currentBrightness = 1; currentBrightness - 1 < brightnessPerPixel; currentBrightness++)
+            for (uint8_t currentStep = 1; currentStep - 1 < stepsPerPixel; currentStep++)
             {
                 // Wait until the right number of ticks
                 vTaskDelayUntil(&xLastWakeTime, xFrequency);
 
                 /*
                     The FreeRTOS ticker is pretty good, and this is a real time OS, but one the last one,
-                    let's skip a step to allow time for the singaling to get lined up for the top of the
+                    let's skip a few steps to allow time for the singaling to get lined up for the top of the
                     minute.
                 */
-                if (pixel == 11 && currentBrightness == 1)
-                    currentBrightness++;
+                if (pixel == 11 && currentStep == 1)
+                    currentStep += 3;
 
-                l.verbose("now doing brightness %d", currentBrightness);
+                l.verbose("now doing step %d", currentStep);
 
-                // Fill in the already used pixels
-                for (int j = 0; j < pixel; j++)
-                {
-                    strip.setPixelColor(j, strip.ColorHSV(hue, 242, brightnessPerPixel));
-                }
+                strip.setPixelColor(pixel, strip.ColorHSV(interpolateHue(oldHue, newHue, stepsPerPixel, currentStep),
+                                                          gPixelRingSaturation,
+                                                          gPixelBrightness));
 
-                strip.setPixelColor(pixel, strip.ColorHSV(hue, 242, currentBrightness));
-
-                // If we're at the top, reset for next time
-                if (pixel == 11 && currentBrightness == brightnessPerPixel)
-                {
-                    hue = getRandomHue();
-                }
 
                 strip.show();
             }
         }
     }
+}
+
+/**
+ * @brief Returns the requested step in a fade between two hues
+ *
+ * @param oldColor Starting hue
+ * @param newColor Finishing hue
+ * @param totalSteps How many steps are we fading
+ * @param currentStep Which one to get
+ * @return uint16_t The hue requested
+ */
+uint16_t interpolateHue(uint16_t oldHue, uint16_t newHue, uint8_t totalSteps, uint8_t currentStep)
+{
+    // How much is each step?
+    uint16_t differentialStep = (newHue - oldHue) / totalSteps;
+
+    uint16_t stepHue = oldHue + (differentialStep * currentStep);
+    l.verbose("old: %d, new: %d, differential: %d, current: %d", oldHue, newHue, differentialStep, stepHue);
+
+    return stepHue;
 }
