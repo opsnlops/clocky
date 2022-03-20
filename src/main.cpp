@@ -26,8 +26,11 @@ extern "C"
 #include "creature.h"
 #include "config.h"
 #include "ota.h"
+#include "seconds_ring.h"
 
 using namespace creatures;
+
+extern TaskHandle_t secondRingTaskHandle;
 
 TaskHandle_t showTimeTaskHandler;
 TaskHandle_t timeSyncTaskhandler;
@@ -114,6 +117,15 @@ void setup()
 
     digitalWrite(LED_BUILTIN, LOW);
 
+    l.debug("starting the second ring task");
+    xTaskCreatePinnedToCore(secondRingTask,
+                            "secondRingTask",
+                            10240,
+                            NULL,
+                            1,
+                            &secondRingTaskHandle,
+                            1);
+
     l.debug("starting the show time task");
     xTaskCreatePinnedToCore(showTimeTask,
                             "showTimeTask",
@@ -121,26 +133,17 @@ void setup()
                             NULL,
                             1,
                             &showTimeTaskHandler,
-                            1);
+                            0);
 
     // Start the task to read the queue
     l.debug("starting the message reader task");
-    xTaskCreate(messageQueueReaderTask,
-                "messageQueueReaderTask",
-                20480,
-                NULL,
-                1,
-                &messageReaderTaskHandle);
-
-    /*
-    l.debug("starting the show time task");
-    xTaskCreate(timeSyncTask,
-                "showTimeTask",
-                8192,
-                NULL,
-                1,
-                &showTimeTaskHandler);
-    */
+    xTaskCreatePinnedToCore(messageQueueReaderTask,
+                            "messageQueueReaderTask",
+                            20480,
+                            NULL,
+                            1,
+                            &messageReaderTaskHandle,
+                            0);
 
     l.info("All booted!");
 }
@@ -155,18 +158,31 @@ portTASK_FUNCTION(showTimeTask, pvParameters)
 
     l.info("Show Time Task started");
 
+    Time time = Time();
+
     int refreshRate = 100;   // Refresh rate in ms
     int colonBlinkRate = 10; // How many ticks to flip the colons?
 
     boolean showColon = true;
+
+    // Seed the last time with right now
+    int lastTime = atoi(time.getCurrentTime("%H%M").c_str());
 
     int cycle = 0;
     for (;;)
     {
         if (gDisplayOn)
         {
-            Time time = Time();
+
             int currentTime = atoi(time.getCurrentTime("%H%M").c_str());
+
+            // Should we signal to the second ring to start?
+            if (currentTime != lastTime)
+            {
+                xTaskNotify(secondRingTaskHandle, 0, eNoAction);
+                lastTime = currentTime;
+                l.debug("signaled to the second ring to go (%d)", currentTime);
+            }
 
             // If the time is less than 1200, it's AM.
             boolean isAm = true;
