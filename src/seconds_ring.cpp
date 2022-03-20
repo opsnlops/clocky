@@ -57,7 +57,7 @@ portTASK_FUNCTION(secondRingTask, pvParameters)
     l.debug("started up the LED ring on GPIO %d", LED_RING_PIN);
 
     // How many ticks per step? 60000 ms in a minute / 12 pixels / how many steps per pixel
-    const int stepsPerPixel = 75; // Five seconds per pixel  (75 = 15Hz)
+    const int stepsPerPixel = 125; // Five seconds per pixel  (125 = 25Hz)
     const TickType_t xFrequency = pdMS_TO_TICKS(60000 / 12 / stepsPerPixel);
     l.debug("frequency is %d", xFrequency);
 
@@ -103,7 +103,7 @@ portTASK_FUNCTION(secondRingTask, pvParameters)
                     minute.
                 */
                 if (pixel == 11 && currentStep == 1)
-                    currentStep += 3;
+                    currentStep += 2;
 
                 l.verbose("now doing step %d", currentStep);
 
