@@ -1,6 +1,6 @@
 #pragma once
 
-#define CREATURE_NAME "clocky-dev"
+#define CREATURE_NAME "clocky-workshop"
 #define CREATURE_POWER "mains"
 
 // Toss some things into the global namespace so that the libs can read it

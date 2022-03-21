@@ -11,10 +11,18 @@ using namespace creatures;
 #define BRIGHTNESS_MIN 0
 #define BRIGHTNESS_MAX 15
 
+#define LED_RING_BRIGHTNESS_MIN 0
+#define LED_RING_BRIGHTNESS_MAX 254
+
+#define LED_RING_SATURATION_MIN 0
+#define LED_RING_SATURATION_MAX 254
+
 // Defined in main.cpp
 extern uint8_t gScreenBrightness;
 extern boolean gBlinkColon;
 extern boolean gDisplayOn;
+extern uint8_t gPixelRingSaturation;
+extern uint8_t gPixelBrightness;
 
 static Logger l;
 
@@ -133,6 +141,68 @@ void updateConfig(String incomingJson)
         else
         {
             l.warning("'displayOn' was missing in the config object, not changing anything");
+        }
+
+        /*
+            LED Ring Brightness
+
+            Parameter: ledRingBrightness
+        */
+
+        String ledRingBrightness = json["ledRingBrightness"];
+        l.debug("'ledRingBrightness' was %s", brightness.c_str());
+
+        // Don't look at an empty string
+        if (ledRingBrightness != NULL && !ledRingBrightness.isEmpty() && !ledRingBrightness.equals("null"))
+        {
+
+            uint8_t decodedLedRingBrightness = atoi(ledRingBrightness.c_str());
+
+            // Make sure that the brightness is in range
+            if (decodedLedRingBrightness >= LED_RING_BRIGHTNESS_MIN && decodedLedRingBrightness <= LED_RING_BRIGHTNESS_MAX)
+            {
+                l.debug("setting LED ring brightness to %d", decodedLedRingBrightness);
+                gPixelBrightness = decodedLedRingBrightness;
+            }
+            else
+            {
+                l.error("Got an out-of-range LED ring brightness request: %d", decodedLedRingBrightness);
+            }
+        }
+        else
+        {
+            l.warning("'ledRingBrightness' was missing from the config");
+        }
+
+        /*
+            LED Ring Saturation
+
+            Parameter: ledRingSaturation
+        */
+
+        String saturation = json["ledRingSaturation"];
+        l.debug("'ledRingSaturation' was %s", saturation.c_str());
+
+        // Don't look at an empty string
+        if (saturation != NULL && !saturation.isEmpty() && !saturation.equals("null"))
+        {
+
+            uint8_t decodedSaturation = atoi(saturation.c_str());
+
+            // Make sure that the brightness is in range
+            if (decodedSaturation >= LED_RING_SATURATION_MIN && decodedSaturation <= LED_RING_SATURATION_MAX)
+            {
+                l.debug("setting LED saturation to %d", decodedSaturation);
+                gPixelRingSaturation = decodedSaturation;
+            }
+            else
+            {
+                l.error("Got an out-of-range LED saturation request: %d", decodedSaturation);
+            }
+        }
+        else
+        {
+            l.warning("'ledRingSaturation' was missing from the config");
         }
     }
 }
