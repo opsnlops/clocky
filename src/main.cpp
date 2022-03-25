@@ -48,6 +48,9 @@ uint8_t gScreenBrightness = 1; // 0 - 15, 15 is brightest
 boolean gBlinkColon = true;    // Should the colon blink?
 boolean gDisplayOn = true;     // Should the display be on? (So I can turn it off while we're watching movies!)
 
+// Keep track of our mDNS provider
+CreatureMDNS* creatureMDNS;
+
 void setup()
 {
     /*
@@ -81,9 +84,9 @@ void setup()
     display.writeDisplay();
 
     // Register ourselves in mDNS
-    CreatureMDNS creatureMDNS = CreatureMDNS(CREATURE_NAME, CREATURE_POWER);
-    creatureMDNS.registerService(666);
-    creatureMDNS.addStandardTags();
+    creatureMDNS = new CreatureMDNS(CREATURE_NAME, CREATURE_POWER);
+    creatureMDNS->registerService(666);
+    creatureMDNS->addStandardTags();
     display.print(bootPhase++);
     display.writeDisplay();
 

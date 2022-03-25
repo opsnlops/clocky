@@ -8,6 +8,7 @@ extern "C"
 }
 
 #include "logging/logging.h"
+#include "mdns/creature-mdns.h"
 
 #include "seconds_ring.h"
 
@@ -15,8 +16,12 @@ using namespace creatures;
 
 static Logger l;
 
-Adafruit_NeoPixel strip = Adafruit_NeoPixel(12, LED_RING_PIN, NEO_GRB + NEO_KHZ800);
+#define NUMBER_OF_PIXELS 60
 
+Adafruit_NeoPixel strip = Adafruit_NeoPixel(NUMBER_OF_PIXELS, LED_RING_PIN, NEO_GRB + NEO_KHZ800);
+
+
+extern CreatureMDNS* creatureMDNS;
 
 // Config vars
 uint8_t gPixelRingSaturation;
@@ -56,16 +61,18 @@ portTASK_FUNCTION(secondRingTask, pvParameters)
     strip.show();
     l.debug("started up the LED ring on GPIO %d", LED_RING_PIN);
 
-    // How many ticks per step? 60000 ms in a minute / 12 pixels / how many steps per pixel
-    const int stepsPerPixel = 125; // Five seconds per pixel  (125 = 25Hz)
-    const TickType_t xFrequency = pdMS_TO_TICKS(60000 / 12 / stepsPerPixel);
+    creatureMDNS->addServiceText(String("number_of_pixels"), String(NUMBER_OF_PIXELS));
+
+    // How many ticks per step? 60000 ms in a minute / NUMBER_OF_PIXELS pixels / how many steps per pixel
+    const int stepsPerPixel = 40; // One second per pixel  (25 = 25Hz)
+    const TickType_t xFrequency = pdMS_TO_TICKS(60000 / NUMBER_OF_PIXELS / stepsPerPixel);
     l.debug("frequency is %d", xFrequency);
 
     uint16_t oldHue = getRandomHue();
 
     // Fill the strip with the oldHue
     l.debug("filling the ring with the 'old' hue");
-    for(uint8_t i = 0; i < 12; i++)
+    for(uint8_t i = 0; i < NUMBER_OF_PIXELS; i++)
     {
         strip.setPixelColor(i, strip.ColorHSV(oldHue, gPixelRingSaturation, gPixelBrightness));
     }
@@ -89,7 +96,7 @@ portTASK_FUNCTION(secondRingTask, pvParameters)
         l.debug("oldHue: %d, newHue: %d", oldHue, newHue);
 
         uint8_t currentStep = 0;
-        for (uint8_t pixel = 0; pixel < 12; pixel++)
+        for (uint8_t pixel = 0; pixel < NUMBER_OF_PIXELS; pixel++)
         {
             l.debug("now doing pixel %d", pixel);
             for (uint8_t currentStep = 1; currentStep - 1 < stepsPerPixel; currentStep++)
@@ -102,7 +109,7 @@ portTASK_FUNCTION(secondRingTask, pvParameters)
                     let's skip a few steps to allow time for the singaling to get lined up for the top of the
                     minute.
                 */
-                if (pixel == 11 && currentStep == 1)
+                if (pixel == NUMBER_OF_PIXELS - 1 && currentStep == 1)
                     currentStep += 2;
 
                 l.verbose("now doing step %d", currentStep);
