@@ -55,7 +55,7 @@ portTASK_FUNCTION(secondRingTask, pvParameters)
 
     // Default to this for now, make this a config var later
     gPixelRingSaturation = 242;
-    gPixelBrightness = 15;
+    gPixelBrightness = 10;
     strip.begin();
     strip.clear();
     strip.show();
